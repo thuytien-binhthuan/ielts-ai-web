@@ -251,7 +251,7 @@ function buildDeviceData() {
 
 export function PracticeHome() {
   const [isGoogleReady, setIsGoogleReady] = React.useState(false);
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [isAuthenticated, setIsAuthenticated] = React.useState(true);
   const [authError, setAuthError] = React.useState<string | null>(null);
 
   const googleLogin = GoogleLogin();
@@ -353,13 +353,6 @@ export function PracticeHome() {
   }, [mainContent.data]);
 
   const hasEmptyHome = filteredSections.length === 0;
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    setIsAuthenticated(Boolean(window.localStorage.getItem(ACCESS_TOKEN_KEY)));
-  }, []);
 
   React.useEffect(() => {
     if (selectedTag || !tagsQuery.data?.length) {
@@ -1528,7 +1521,7 @@ export function PracticeHome() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 pb-12 pt-8 sm:px-6 lg:px-8">
       <section className="rounded-3xl border border-[#1b2e3e]/10 bg-white/80 p-6 shadow-[0_16px_40px_-28px_rgba(27,46,62,0.35)] backdrop-blur-sm sm:p-8">
-        <p className="text-sm font-bold tracking-[0.3em] text-[#ef6c3a]">FIKA WEB LANE</p>
+        <p className="text-sm font-bold tracking-[0.3em] text-[#ef6c3a]">IELTS WEB LANE</p>
         <h1 className="mt-4 text-4xl text-[#1b2e3e] sm:text-6xl">Practice speaking sets on web</h1>
         <p className="mt-4 max-w-3xl text-base text-[#1b2e3e]/75 sm:text-lg">
           Home now mirrors the mobile practice flow: no testing room, part sets only, and each set can run teacher video plus question-by-question recording with
@@ -1560,15 +1553,6 @@ export function PracticeHome() {
                   }}
                 >
                   Refresh
-                </button>
-                <button
-                  className="rounded-full border border-[#ef6c3a]/30 bg-[#ef6c3a]/10 px-4 py-2 text-sm font-semibold text-[#ef6c3a] hover:bg-[#ef6c3a]/20"
-                  type="button"
-                  onClick={() => {
-                    void handleLogout();
-                  }}
-                >
-                  Logout
                 </button>
               </div>
             </div>

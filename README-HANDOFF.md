@@ -1,4 +1,4 @@
-# Fika Web Standalone Handoff
+# IELTS Speaking Web Standalone Handoff
 
 This folder is a standalone copy of the web app so it can be maintained in a separate repository without depending on the mobile project structure.
 
@@ -12,11 +12,11 @@ This folder is a standalone copy of the web app so it can be maintained in a sep
 
 ## Run locally
 
-1. `cd deliverables/fika-web-standalone`
+1. `cd deliverables/<YOUR_STANDALONE_FOLDER>`
 2. `npm install`
 3. Create `.env.local` from `.env.example` and set values:
    - `NEXT_PUBLIC_ROOT_BE_URL` (default web proxy base is `/api/proxy`)
-   - `BE_PROXY_TARGET` (backend host, e.g. `https://be-prod.fikaielts2.com`)
+   - `BE_PROXY_TARGET` (backend host, e.g. `http://localhost:8010`)
    - `NEXT_PUBLIC_PART2_PREP_SECONDS` (optional test override)
 4. `npm run dev`
 

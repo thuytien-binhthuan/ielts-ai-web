@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const UPSTREAM_BASE_URL = process.env.BE_PROXY_TARGET ?? "https://be-prod.fikaielts2.com";
+const UPSTREAM_BASE_URL = process.env.BE_PROXY_TARGET ?? "http://localhost:8010";
 const RETRY_ATTEMPTS = 3;
 const RETRY_BASE_DELAY_MS = 400;
 const REQUEST_TIMEOUT_MS = 120000;

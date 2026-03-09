@@ -15,8 +15,8 @@ const headingFont = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Fika Web Bootstrap",
-  description: "Web migration lane for the Fika mobile app.",
+  title: "IELTS Speaking Web",
+  description: "Web practice flow for IELTS speaking sets.",
 };
 
 export default function RootLayout({

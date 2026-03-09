@@ -16,9 +16,8 @@ const KNOWN_BACKEND_PREFIXES = Array.from(
       toPrefix(process.env.NEXT_PUBLIC_ROOT_BE_URL),
       toPrefix(process.env.ROOT_BE_URL),
       "/proxy",
-      "https://be-prod.fikaielts2.com",
-      "https://api-staging-2.fikaielts2.com",
       "http://localhost:8000",
+      "http://localhost:8010",
     ].filter((item): item is string => Boolean(item)),
   ),
 );

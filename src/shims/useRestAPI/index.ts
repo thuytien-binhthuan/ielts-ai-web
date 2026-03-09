@@ -33,11 +33,8 @@ function normalizeRequestUrlForWeb(url: string): string {
 
   try {
     const parsed = new URL(url);
-    const isKnownBackendHost =
-      parsed.hostname === "be-prod.fikaielts2.com" ||
-      parsed.hostname === "api-staging-2.fikaielts2.com" ||
-      parsed.hostname === "localhost";
-    if (!isKnownBackendHost) {
+    const isBackendApiPath = parsed.pathname.startsWith("/v1/");
+    if (!isBackendApiPath) {
       return url;
     }
 
