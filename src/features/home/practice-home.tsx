@@ -12,8 +12,6 @@ import type { ContentResponseBody } from "~apis/requests/speaking/full-test/get-
 import { GetAnswerIdeas } from "~apis/requests/speaking/full-test/get-answer-ideas";
 import { NextQuestion } from "~apis/requests/speaking/full-test/next-question";
 import type { Action, NextQuestionResponse, QuestionPart1, QuestionPart2, QuestionPart3 } from "~apis/requests/speaking/full-test/types";
-import { GetQuestionList } from "~apis/requests/speaking/get-question-list";
-import { Speaking_GetSetById } from "~apis/requests/speaking/get-set-by-id";
 import { WEB_CLIENT_ID } from "~configs/constants";
 import type { GroupItem, SectionGroup } from "~types/apis/app-content";
 import { reducePart2Phase, type Part2Event, type Part2Phase } from "./part2-flow";
@@ -80,11 +78,6 @@ type ConversationRow = {
   text: string;
 };
 
-type SetQuestionOutline = {
-  part: number;
-  questions: string[];
-};
-
 type AnswerIdeasPayload = {
   idea: string;
   sample_answer: string;
@@ -141,6 +134,38 @@ function getVideoUrl(response: NextQuestionResponse | null): string {
   if ("data" in response && response.data && typeof response.data.video_url === "string") {
     return response.data.video_url;
   }
+  return "";
+}
+
+function getTeacherText(response: NextQuestionResponse | null): string {
+  if (!response) {
+    return "";
+  }
+
+  const candidates: unknown[] = [];
+  const responseRecord = response as unknown as Record<string, unknown>;
+  candidates.push(responseRecord.text);
+
+  if ("data" in response && response.data && typeof response.data === "object") {
+    const dataRecord = response.data as unknown as Record<string, unknown>;
+    candidates.push(
+      dataRecord.text,
+      dataRecord.question,
+      dataRecord.prompt,
+      dataRecord.script,
+      dataRecord.transcript,
+    );
+  }
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      const normalized = candidate.trim();
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+
   return "";
 }
 
@@ -258,8 +283,6 @@ export function PracticeHome() {
   const tagsQuery = Speaking_Get_Tags_Screen_Practice(isAuthenticated);
   const mainContent = Speaking_GetMain_Screen_Practice();
   const seeAllParts = Speaking_SeeAllPartsScreenPractice();
-  const questionListApi = GetQuestionList();
-  const setByIdApi = Speaking_GetSetById();
   const nextQuestionApi = NextQuestion();
   const answerIdeasApi = GetAnswerIdeas();
   const adviceApi = GetAdvice();
@@ -296,8 +319,6 @@ export function PracticeHome() {
 
   const [activeSet, setActiveSet] = React.useState<GroupItem | null>(null);
   const [isPracticeModalOpen, setPracticeModalOpen] = React.useState(false);
-  const [setOutline, setSetOutline] = React.useState<SetQuestionOutline[]>([]);
-  const [setOutlineError, setSetOutlineError] = React.useState<string | null>(null);
 
   const [practiceStage, setPracticeStage] = React.useState<PracticeStage>("idle");
   const [sessionId, setSessionId] = React.useState<string | null>(null);
@@ -672,8 +693,6 @@ export function PracticeHome() {
 
     if (!keepSetSelection) {
       setActiveSet(null);
-      setSetOutline([]);
-      setSetOutlineError(null);
       setSessionPosterUrl(null);
     }
   }
@@ -726,14 +745,22 @@ export function PracticeHome() {
         pageSize: 12,
       });
 
-      const safeItems = (response?.data ?? []).filter((item) => item.type !== "Speaking_Full_Test");
+      const rawItems = Array.isArray(response)
+        ? response
+        : Array.isArray((response as { data?: GroupItem[] } | undefined)?.data)
+          ? ((response as { data: GroupItem[] }).data ?? [])
+          : [];
+      const safeItems = rawItems.filter((item) => item.type !== "Speaking_Full_Test");
+      const meta = (response as { meta?: { page?: number; totalPages?: number } } | undefined)?.meta;
+      const nextPage = typeof meta?.page === "number" ? meta.page : page;
+      const nextTotalPages = typeof meta?.totalPages === "number" ? meta.totalPages : nextPage;
 
       setSeeAllModal((prev) => ({
         ...prev,
         loading: false,
         part,
-        page: response.meta.page,
-        totalPages: response.meta.totalPages,
+        page: nextPage,
+        totalPages: nextTotalPages,
         items: append ? [...prev.items, ...safeItems] : safeItems,
       }));
     } catch (error) {
@@ -771,38 +798,11 @@ export function PracticeHome() {
     await loadSeeAll(seeAllModal.part, seeAllModal.page + 1, true);
   }
 
-  async function loadSetOutlineData(setId: string) {
-    setSetOutline([]);
-    setSetOutlineError(null);
-
-    try {
-      const response = await questionListApi.mutateAsync({ item_code: setId });
-      setSetOutline(response);
-      return;
-    } catch {
-      // Fallback request below.
-    }
-
-    try {
-      const fallbackSet = await setByIdApi.mutateAsync({ setId });
-      const mapped: SetQuestionOutline[] = [
-        {
-          part: fallbackSet.part,
-          questions: (fallbackSet.questions ?? []).map((question) => question.text),
-        },
-      ];
-      setSetOutline(mapped);
-    } catch (error) {
-      setSetOutlineError(getErrorMessage(error));
-    }
-  }
-
   async function handleOpenSet(item: GroupItem) {
     setActiveSet(item);
     setPracticeModalOpen(true);
     resetPracticeState(true);
     setSessionPosterUrl(item.imageUrl || null);
-    await loadSetOutlineData(item.id);
   }
 
   async function requestNextQuestion(sessionToUse: string) {
@@ -979,12 +979,13 @@ export function PracticeHome() {
       return;
     }
 
-    if ("data" in response && typeof response.data.text === "string" && response.data.text.trim()) {
+    const teacherText = getTeacherText(response);
+    if (teacherText) {
       setConversationRows((previousRows) => [
         ...previousRows,
         {
           speaker: "Teacher",
-          text: response.data.text,
+          text: teacherText,
         },
       ]);
     }
@@ -1487,32 +1488,7 @@ export function PracticeHome() {
     }
   };
 
-  const renderSetOutline = () => {
-    if (setOutlineError) {
-      return <p className="mt-2 text-xs text-red-600">{setOutlineError}</p>;
-    }
-
-    if (!setOutline.length) {
-      return <p className="mt-2 text-xs text-[#1b2e3e]/60">Question list will appear after session starts.</p>;
-    }
-
-    return (
-      <div className="mt-3 space-y-3">
-        {setOutline.map((partItem) => (
-          <div key={`outline-part-${partItem.part}`} className="rounded-xl border border-[#1b2e3e]/10 bg-white px-3 py-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#ef6c3a]">Part {partItem.part}</p>
-            <ul className="mt-2 space-y-1 text-xs text-[#1b2e3e]/80">
-              {partItem.questions.slice(0, 4).map((question, index) => (
-                <li key={`outline-question-${partItem.part}-${index}`}>{question}</li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const currentQuestionTitle = isQuestionResponse(currentResponse) ? currentResponse.data.text : "";
+  const currentQuestionTitle = getTeacherText(currentResponse);
   const currentPart = isQuestionResponse(currentResponse) ? currentResponse.data.part : undefined;
   const currentVideoUrl = getVideoUrl(currentResponse);
 
@@ -1521,11 +1497,10 @@ export function PracticeHome() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 pb-12 pt-8 sm:px-6 lg:px-8">
       <section className="rounded-3xl border border-[#1b2e3e]/10 bg-white/80 p-6 shadow-[0_16px_40px_-28px_rgba(27,46,62,0.35)] backdrop-blur-sm sm:p-8">
-        <p className="text-sm font-bold tracking-[0.3em] text-[#ef6c3a]">IELTS WEB LANE</p>
-        <h1 className="mt-4 text-4xl text-[#1b2e3e] sm:text-6xl">Practice speaking sets on web</h1>
+        <p className="text-sm font-bold tracking-[0.3em] text-[#ef6c3a]">PRACTICE IELTS SPEAKING WITH AI TEACHERS</p>
+        <h1 className="mt-4 text-4xl text-[#1b2e3e] sm:text-6xl">Product by Thuy Tien - Tan An Secondary School</h1>
         <p className="mt-4 max-w-3xl text-base text-[#1b2e3e]/75 sm:text-lg">
-          Home now mirrors the mobile practice flow: no testing room, part sets only, and each set can run teacher video plus question-by-question recording with
-          suggestion and AI feedback.
+          Choose a topic and practice speaking with suggestions and feedback from AI. Have fun!
         </p>
       </section>
 
@@ -1796,11 +1771,6 @@ export function PracticeHome() {
 
               <aside className="min-h-0 overflow-y-auto px-5 py-4">
                 <section className="rounded-2xl border border-[#1b2e3e]/10 bg-white/90 px-4 py-3">
-                  <p className="text-sm font-semibold text-[#1b2e3e]">Set overview</p>
-                  {renderSetOutline()}
-                </section>
-
-                <section className="mt-4 rounded-2xl border border-[#1b2e3e]/10 bg-white/90 px-4 py-3">
                   <p className="text-sm font-semibold text-[#1b2e3e]">Suggestions</p>
                   {!answerIdeasData && answerIdeasApi.isPending ? <p className="mt-2 text-xs text-[#1b2e3e]/60">Generating suggestion...</p> : null}
                   {answerIdeasData ? (
